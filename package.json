@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev -p 4028",
+    "dev": "next dev -p 4028 -H 0.0.0.0",
     "build": "next build",
     "start": "next start -p 4028",
     "lint": "next lint",
@@ -11,7 +11,23 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,css,md,json}\"",
     "serve": "next start -p 4028",
     "type-check": "tsc --noEmit",
-    "test:safety": "tsx scripts/safety-tests.ts"
+    "test:safety": "OPENROUTER_API_KEY= ANTHROPIC_API_KEY= DHIRA_ALLOW_OFFLINE=true tsx scripts/safety-tests.ts",
+    "test:definitive-transcript": "tsx scripts/definitive-transcript-tests.ts",
+    "test:live-brain-smoke": "tsx scripts/live-brain-smoke.ts",
+    "test:voice-custom-llm": "tsx scripts/test-voice-custom-llm.ts",
+    "test:language-detection": "tsx scripts/test-language-detection.ts",
+    "test:memory-display": "tsx scripts/test-memory-display.ts",
+    "test:timeline-notebook": "tsx scripts/test-timeline-notebook.ts",
+    "test:voice-language": "tsx scripts/test-voice-language.ts",
+    "configure:google-auth": "tsx scripts/configure-supabase-google-auth.ts",
+    "verify:google-auth": "tsx scripts/verify-google-auth.ts",
+    "ensure:supabase-auth-urls": "tsx scripts/ensure-supabase-auth-urls.ts",
+    "ensure:supabase-email-rate-limits": "tsx scripts/ensure-supabase-email-rate-limits.ts",
+    "verify:password-reset": "tsx scripts/verify-password-reset.ts",
+    "configure:password-reset": "tsx scripts/configure-password-reset.ts",
+    "restore:default-recovery-template": "tsx scripts/restore-default-recovery-template.ts",
+    "verify:recovery-template": "tsx scripts/verify-recovery-template.ts",
+    "test:password-reset-flow": "tsx scripts/test-password-reset-flow.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.112.3",
@@ -27,6 +43,7 @@
     "react-dom": "19.0.3",
     "recharts": "^2.15.2",
     "sonner": "^1.7.4",
+    "standardwebhooks": "^1.0.0",
     "twilio": "^6.0.2"
   },
   "devDependencies": {

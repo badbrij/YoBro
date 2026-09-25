@@ -11,6 +11,7 @@ Stack: **Next.js 15 · React 19 · TypeScript · Tailwind · Supabase Auth + Pos
 > Team status snapshot (completed vs pending): see **[DEMO_DAY_STATUS.md](./DEMO_DAY_STATUS.md)**  
 > Emergent Demo Day workflow (attach in Emergent): **[docs/emergent/EMERGENT_DEMO_DAY_WORKFLOW.md](./docs/emergent/EMERGENT_DEMO_DAY_WORKFLOW.md)**  
 > Email / WhatsApp templates: **[docs/emergent/TEMPLATES.md](./docs/emergent/TEMPLATES.md)**  
+> Team user-testing Form kit: **[docs/user-testing/FACILITATOR_NOTES.md](./docs/user-testing/FACILITATOR_NOTES.md)**  
 > Cloud-agent notes: **[AGENTS.md](./AGENTS.md)** · Product routes/safety: **[CLAUDE.md](./CLAUDE.md)** · Data model: **[supabase/DATA_MODEL.md](./supabase/DATA_MODEL.md)**
 
 ### Re-create Emergent workflows from this repo
@@ -22,6 +23,22 @@ Anyone can rebuild the Demo Day clock + send flows without tribal knowledge:
 3. Point them at Dhira’s APIs: `GET /api/notifications/due`, `POST /api/checkin`, `POST /api/notifications/weekly`, then call `POST /api/notifications/callback` after send.
 4. Use templates from `docs/emergent/TEMPLATES.md`.
 5. Match env secrets listed in `.env.example` (`EMERGENT_*`, `CHECKIN_SECRET`, `APP_URL`).
+
+### Twilio WhatsApp (inbound chat)
+
+Users message your Twilio WhatsApp number → Twilio POSTs to **`/api/twilio/whatsapp`** → Dhira runs the same **`runChatTurn`** pipeline as web chat (escalation + monitor + Tele-MANAS **14416** on crisis) → response is **TwiML** `<Message>`.
+
+1. Set `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_WHATSAPP_NUMBER` (+`OPENROUTER_API_KEY` or `ANTHROPIC_API_KEY`) in `.env.local` / Vercel. Use **E.164** for the number (`+17016958623`), not `whatsapp:+...`.
+2. Set `APP_URL` to your public origin (used for Emergent callbacks; inbound Twilio signature uses the **same URL as Twilio Console** — usually the request host on Vercel).
+3. Twilio Console → WhatsApp sender (or Sandbox) → **When a message comes in** → `POST` `https://<host>/api/twilio/whatsapp` (**no trailing slash**). Sandbox `+14155238886`: testers must send `join <sandbox-keyword>` once before chatting.
+4. Local dev: tunnel (ngrok) to `http://localhost:4028/api/twilio/whatsapp`, or set `TWILIO_VALIDATE_WEBHOOK=false` and test with `curl`.
+5. Legacy alias: `/api/twilio/webhook` uses the same handler. **Rotate** Auth Token if it was ever pasted in chat or committed.
+
+### Telegram proactive check-ins (optional third channel)
+
+Same check-in contract as email/WhatsApp — Profile → Check-ins → connect Telegram, pick **Telegram** as preferred channel. Scheduling stays **`GET /api/notifications/due`** + **`POST /api/checkin`** (Emergent/n8n or pg_cron); do not use `/api/cron/checkin` for AI check-ins.
+
+Setup: **[docs/telegram/TELEGRAM_SETUP.md](./docs/telegram/TELEGRAM_SETUP.md)** · env vars in `.env.example` (`TELEGRAM_*`).
 
 ---
 
@@ -51,12 +68,18 @@ Expect something like:
 | `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Publishable key (`sb_publishable_...`) — browser Auth |
 | `SUPABASE_SERVICE_ROLE_KEY` | Secret key (`sb_secret_...`) — **server only**, cloud DB writes |
-| `ANTHROPIC_API_KEY` | Real Claude brain (`sk-...`). Without it → offline brain |
+| `OPENROUTER_API_KEY` | **Preferred** central brain (`sk-or-v1-...` from [openrouter.ai](https://openrouter.ai)). Without a live brain key → offline brain |
+| `ANTHROPIC_API_KEY` | Legacy fallback direct Claude key (`sk-...`). Not needed if OpenRouter is set |
+| `DHIRA_MODEL_SONNET` | Optional override for voice/safety model (default OpenRouter: `anthropic/claude-sonnet-4.5`) |
+| `DHIRA_MODEL_HAIKU` | Optional override for mood/memory model (default OpenRouter: `anthropic/claude-haiku-4.5`) |
 | `EMERGENT_NOTIFY_WEBHOOK_URL` | Optional email/WhatsApp delivery via Emergent |
 | `EMERGENT_WEBHOOK_SECRET` | Shared secret for Emergent callbacks |
-| `WHATSAPP_ENABLED` | `true` only after WhatsApp Business approval |
+| `WHATSAPP_ENABLED` | `true` for proactive outbound WhatsApp via Twilio (`notify.ts`) |
+| `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_WHATSAPP_NUMBER` | Twilio WhatsApp (E.164 for number, no `whatsapp:` prefix) |
+| `TWILIO_VALIDATE_WEBHOOK` | Set `false` locally to POST test webhooks without Twilio signature |
+| `TWILIO_WEBHOOK_PUBLIC_URL` | Optional full webhook URL if Console differs from `APP_URL` + path |
 | `CHECKIN_SECRET` | Protects scheduled `/api/checkin` triggers |
-| `APP_URL` | Public app URL for callbacks |
+| `APP_URL` | Public app URL (Emergent callbacks + Twilio signature URL) |
 
 **Never commit** `.env.local` or secret keys. `.gitignore` already blocks them.
 
@@ -67,7 +90,10 @@ Expect something like:
 3. **Authentication → Providers → Email** → enable Email.  
    For Demo Day: turn **Confirm email OFF** (avoids email rate limits / confirmation loops).
 4. **Project Settings → API Keys** → copy URL, publishable key, secret key into `.env.local`.
-5. Restart `npm run dev`.
+5. **Google OAuth:** follow [`docs/SUPABASE_GOOGLE_AUTH.md`](./docs/SUPABASE_GOOGLE_AUTH.md) (redirect URLs + Google Cloud client).
+6. **Phone OTP (SMS):** follow [`docs/SUPABASE_PHONE_OTP.md`](./docs/SUPABASE_PHONE_OTP.md) (Supabase Phone provider + Twilio SMS — separate from WhatsApp webhook).
+7. **Password reset:** follow [`docs/SUPABASE_PASSWORD_RESET.md`](./docs/SUPABASE_PASSWORD_RESET.md) (Forgot Password on sign-in).
+8. Restart `npm run dev`.
 
 ---
 
@@ -95,6 +121,7 @@ API routes live under `src/app/api/*`. Protected pages use `src/middleware.ts` (
 | `npm run build` | Production build |
 | `npm run serve` | `next start` (after build) |
 | `npm run type-check` | TypeScript (run this — build ignores TS/ESLint errors by config) |
+| `npm run test:safety` | Safety suite (spec §10 + context-fix tests C1–C10; offline brain OK) |
 | `npm run lint` / `lint:fix` | ESLint |
 | `npm run format` | Prettier |
 
@@ -104,8 +131,8 @@ API routes live under `src/app/api/*`. Protected pages use `src/middleware.ts` (
 
 - **Dual mode:** offline local store (`.data/dhira-store.json`) **or** Supabase Postgres when service-role key is set.
 - **Auth:** Supabase Auth when URL + publishable key are set; otherwise local/dev auth APIs.
-- **Brain:** Anthropic six agents in `src/agents/*` when `ANTHROPIC_API_KEY` is a real `sk-` key; else `src/lib/localBrain.ts`.
-- **Safety:** Escalation + Monitor + Tele-MANAS 14416; every outbound chat/notification is monitor-gated.
+- **Brain:** Six agents in `src/agents/*` call OpenRouter (preferred via `OPENROUTER_API_KEY`) or a direct Anthropic key; else `src/lib/localBrain.ts`. Check `GET /api/status` → `liveBrain`.
+- **Safety:** Escalation + Monitor + Tele-MANAS 14416; trajectory-aware context via `src/lib/conversationContext.ts`; every outbound chat/notification is monitor-gated.
 - **Notifications:** `src/lib/notify.ts` → Emergent webhook (or `dev-simulated` without webhook).
 
 ---

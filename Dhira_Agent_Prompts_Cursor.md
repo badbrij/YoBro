@@ -1,6 +1,6 @@
 # Dhira — Agent Prompt Specification (Cursor-Ready)
 
-**What this file is:** the complete set of AI agent instructions for building **Dhira**, a listener-first 2 AM companion. Every prompt below is self-contained. To use it in Cursor, copy a whole `prompt` block and paste it as the system/instruction for that agent.
+**What this file is:** the complete set of AI agent instructions for building **Dhira**. **Source of truth for Primary + Monitor + Escalation in production code:** [`src/agents/primary.ts`](src/agents/primary.ts), [`src/agents/monitor.ts`](src/agents/monitor.ts), [`src/agents/escalation.ts`](src/agents/escalation.ts) (prompts from [`src/agents/prompts/v3Prompts.ts`](src/agents/prompts/v3Prompts.ts)). **Canonical long-form spec:** [`Dhira_Agent_Prompts_v3.md`](Dhira_Agent_Prompts_v3.md) (context-aware safety, v3).
 
 **Product in one line:** a private, always-available companion that listens (never advises or diagnoses), gently helps the user journal, remembers their emotional context, proactively checks in when permitted, and safely hands off in a crisis.
 
